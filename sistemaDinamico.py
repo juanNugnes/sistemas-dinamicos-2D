@@ -257,6 +257,7 @@ def abrir_modo_numerico():
     wn = tk.Toplevel()
     wn.title("Sistema dinámico 2D - Modo Numérico clásico")
     wn.geometry("1200x900")
+    wn.minsize(800, 600)  # Ensure minimum window size
 
     # --- Dividir ventana: gráfico a la izquierda / análisis a la derecha
     frame_main = tk.Frame(wn)
@@ -291,6 +292,16 @@ def abrir_modo_numerico():
     entry_y0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 12))
     entry_y0.grid(row=1, column=3)
     entry_y0.insert(0, "1")
+
+    # === Botones ===
+    btns = tk.Frame(frame_left, relief=tk.RAISED, bd=2, bg="#e0e0e0")
+    btns.pack(pady=15, fill=tk.X)
+    tk.Button(btns, text="GRAFICAR", bg="#4CAF50", fg="white",
+              font=("Consolas", 14, "bold"), command=lambda: graficar_numerico(), 
+              width=15, height=2).pack(side=tk.LEFT, padx=10, expand=True)
+    tk.Button(btns, text="VERIFICAR", bg="#2196F3", fg="white",
+              font=("Consolas", 14, "bold"), command=lambda: verificar_solucion(),
+              width=15, height=2).pack(side=tk.LEFT, padx=10, expand=True)
 
     # === Canvas ===
     fig, ax = plt.subplots(figsize=(7.5, 7.5))
@@ -714,13 +725,6 @@ def abrir_modo_numerico():
         except Exception as e:
             text_info.insert(tk.END, f"⚠️ Error en verificación: {e}\n")
 
-    # === Botones ===
-    btns = tk.Frame(frame_left)
-    btns.pack(pady=10)
-    tk.Button(btns, text="GRAFICAR", bg="#4CAF50", fg="white",
-              font=("Consolas", 14, "bold"), command=graficar_numerico).pack(side=tk.LEFT, padx=6)
-    tk.Button(btns, text="VERIFICAR", bg="#2196F3", fg="white",
-              font=("Consolas", 14, "bold"), command=verificar_solucion).pack(side=tk.LEFT, padx=6)
 
 
 # ============================================================
@@ -860,13 +864,487 @@ def abrir_modo_simbolico():
 
 
 # ============================================================
+# 🔸 Ventana MODO SISTEMAS NO LINEALES
+# ============================================================
+
+def abrir_modo_no_lineal():
+    wnl = tk.Toplevel()
+    wnl.title("Análisis de Sistemas Dinámicos No Lineales")
+    wnl.geometry("1500x1000")
+    wnl.minsize(1200, 800)
+
+    # --- Dividir ventana
+    frame_main = tk.Frame(wnl)
+    frame_main.pack(fill=tk.BOTH, expand=True)
+
+    frame_left = tk.Frame(frame_main)
+    frame_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    frame_right = tk.Frame(frame_main, padx=10, pady=10, bg="#f4f4f4")
+    frame_right.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # === Entradas ===
+    frame_inputs = tk.Frame(frame_left)
+    frame_inputs.pack(pady=10)
+
+    # Sistema no lineal
+    tk.Label(frame_inputs, text="Sistema No Lineal:", font=("Consolas", 12, "bold")).grid(row=0, column=0, columnspan=4, sticky="w")
+    
+    tk.Label(frame_inputs, text="dx/dt =", font=("Consolas", 10)).grid(row=1, column=0)
+    entry_dx = tk.Entry(frame_inputs, width=30, font=("Consolas", 10))
+    entry_dx.grid(row=1, column=1, columnspan=2)
+    entry_dx.insert(0, "y")
+    
+    tk.Label(frame_inputs, text="dy/dt =", font=("Consolas", 10)).grid(row=2, column=0)
+    entry_dy = tk.Entry(frame_inputs, width=30, font=("Consolas", 10))
+    entry_dy.grid(row=2, column=1, columnspan=2)
+    entry_dy.insert(0, "x*(3-x)")
+
+    # Condiciones iniciales para simulación
+    tk.Label(frame_inputs, text="Condiciones iniciales:", font=("Consolas", 12, "bold")).grid(row=3, column=0, columnspan=4, sticky="w", pady=(10,0))
+    
+    tk.Label(frame_inputs, text="x₀:", font=("Consolas", 10)).grid(row=4, column=0)
+    entry_x0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_x0.grid(row=4, column=1)
+    entry_x0.insert(0, "0.5")
+
+    tk.Label(frame_inputs, text="y₀:", font=("Consolas", 10)).grid(row=4, column=2)
+    entry_y0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_y0.grid(row=4, column=3)
+    entry_y0.insert(0, "0.5")
+
+    # Ejemplos predefinidos de la imagen
+    frame_ejemplos = tk.Frame(frame_inputs)
+    frame_ejemplos.grid(row=5, column=0, columnspan=4, pady=10, sticky="ew")
+    
+    tk.Label(frame_ejemplos, text="Ejemplos de la imagen:", font=("Consolas", 11, "bold")).pack(anchor="w")
+    
+    def cargar_ejemplo_nl(num):
+        ejemplos = {
+            1: {"dx": "y", "dy": "x*(3-x)", "x0": "0.5", "y0": "0.5"},  # Ejemplo 1
+            2: {"dx": "y", "dy": "x**3 - x", "x0": "0.1", "y0": "0.1"},  # Ejemplo 2
+            3: {"dx": "y - x", "dy": "x**2 - 1", "x0": "0", "y0": "0"},  # Ejemplo 3
+            4: {"dx": "x*y", "dy": "x**2 + y**2 - 1", "x0": "0.5", "y0": "0.5"},  # Ejemplo 4
+            11: {"dx": "-x + x*y", "dy": "-2*x + x*y", "x0": "1", "y0": "1"},  # Ejemplo 11
+            12: {"dx": "x**2 + y**2 - 2", "dy": "x**2 - y**2", "x0": "1", "y0": "1"},  # Ejemplo 12
+            13: {"dx": "14*x - 0.5*x**2 - x*y", "dy": "16*y - 0.5*y**2 - x*y", "x0": "5", "y0": "5"},  # Ejemplo 13
+            14: {"dx": "x*(3-x) - 2*x*y", "dy": "y*(2-y) - x*y", "x0": "1", "y0": "1"}  # Ejemplo 14
+        }
+        if num in ejemplos:
+            ej = ejemplos[num]
+            entry_dx.delete(0, tk.END); entry_dx.insert(0, ej["dx"])
+            entry_dy.delete(0, tk.END); entry_dy.insert(0, ej["dy"])
+            entry_x0.delete(0, tk.END); entry_x0.insert(0, ej["x0"])
+            entry_y0.delete(0, tk.END); entry_y0.insert(0, ej["y0"])
+
+    btn_frame = tk.Frame(frame_ejemplos)
+    btn_frame.pack(fill="x")
+    for i in [1, 2, 3, 4, 11, 12, 13, 14]:
+        tk.Button(btn_frame, text=f"Ej{i}", font=("Consolas", 8), width=4,
+                 command=lambda x=i: cargar_ejemplo_nl(x)).pack(side=tk.LEFT, padx=1)
+
+    # === Botón único ===
+    btn_frame = tk.Frame(frame_left)
+    btn_frame.pack(pady=20)
+    
+    tk.Button(btn_frame, text="🚀 ANALIZAR SISTEMA COMPLETO", bg="#4CAF50", fg="white",
+              font=("Consolas", 14, "bold"), command=lambda: analizar_sistema_completo(),
+              width=35, height=3, relief=tk.RAISED, bd=3).pack()
+
+    # === Canvas ===
+    fig, ax = plt.subplots(figsize=(8, 8))
+    canvas = FigureCanvasTkAgg(fig, master=frame_left)
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, pady=10)
+
+    # === Panel derecho ===
+    tk.Label(frame_right, text="📊 Análisis de Sistema No Lineal:",
+             bg="#f4f4f4", font=("Consolas", 12, "bold")).pack(anchor="w", pady=(0, 5))
+    text_info = tk.Text(frame_right, width=55, height=45, font=("Consolas", 9), bg="#f9f9f9")
+    text_info.pack(fill=tk.BOTH, expand=True)
+
+    # Variables globales para almacenar resultados
+    equilibrios = []
+    jacobianos = []
+    autovalores_puntos = []
+
+    # === Función única: Análisis completo integrado ===
+    def analizar_sistema_completo():
+        global equilibrios, jacobianos, autovalores_puntos
+        equilibrios = []
+        jacobianos = []
+        autovalores_puntos = []
+        
+        try:
+            text_info.delete("1.0", tk.END)
+            dx_expr = entry_dx.get().strip()
+            dy_expr = entry_dy.get().strip()
+            x0 = float(entry_x0.get())
+            y0 = float(entry_y0.get())
+            
+            # ═══════════════════════════════════════════════
+            # 1️⃣ PASO 1: CÁLCULO DE PUNTOS DE EQUILIBRIO
+            # ═══════════════════════════════════════════════
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+            text_info.insert(tk.END, "1️⃣ PASO 1: CÁLCULO DE PUNTOS DE EQUILIBRIO\n")
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+            
+            text_info.insert(tk.END, f"Sistema:\n")
+            text_info.insert(tk.END, f"dx/dt = {dx_expr}\n")
+            text_info.insert(tk.END, f"dy/dt = {dy_expr}\n\n")
+            
+            text_info.insert(tk.END, "Condición de equilibrio: dx/dt = 0 y dy/dt = 0\n\n")
+            
+            # Resolver usando sympy
+            x, y = sp.symbols('x y')
+            try:
+                dx_sympy = sp.sympify(dx_expr.replace('**', '^').replace('^', '**'))
+                dy_sympy = sp.sympify(dy_expr.replace('**', '^').replace('^', '**'))
+                
+                text_info.insert(tk.END, "Resolviendo:\n")
+                text_info.insert(tk.END, f"{dx_sympy} = 0\n")
+                text_info.insert(tk.END, f"{dy_sympy} = 0\n\n")
+                
+                soluciones = sp.solve([dx_sympy, dy_sympy], [x, y])
+                
+                if isinstance(soluciones, list):
+                    for i, sol in enumerate(soluciones):
+                        if isinstance(sol, tuple) and len(sol) == 2:
+                            try:
+                                x_val = float(sol[0]) if sol[0].is_real else complex(sol[0])
+                                y_val = float(sol[1]) if sol[1].is_real else complex(sol[1])
+                                if isinstance(x_val, (int, float)) and isinstance(y_val, (int, float)):
+                                    equilibrios.append((x_val, y_val))
+                                    text_info.insert(tk.END, f"P{i+1} = ({x_val:.4f}, {y_val:.4f})\n")
+                            except:
+                                pass
+                elif isinstance(soluciones, dict):
+                    try:
+                        x_val = float(soluciones[x]) if soluciones[x].is_real else None
+                        y_val = float(soluciones[y]) if soluciones[y].is_real else None
+                        if x_val is not None and y_val is not None:
+                            equilibrios.append((x_val, y_val))
+                            text_info.insert(tk.END, f"P1 = ({x_val:.4f}, {y_val:.4f})\n")
+                    except:
+                        pass
+            except:
+                pass
+            
+            # Método numérico como respaldo
+            if not equilibrios:
+                text_info.insert(tk.END, "\n⚠️ Usando método numérico...\n")
+                from scipy.optimize import fsolve
+                
+                def sistema_eq(vars):
+                    x_val, y_val = vars
+                    dx_val = eval(dx_expr, {"x": x_val, "y": y_val, "np": np})
+                    dy_val = eval(dy_expr, {"x": x_val, "y": y_val, "np": np})
+                    return [dx_val, dy_val]
+                
+                puntos_iniciales = [(0, 0), (1, 1), (-1, -1), (2, 2), (-2, -2), (0, 1), (1, 0)]
+                
+                for punto in puntos_iniciales:
+                    try:
+                        sol = fsolve(sistema_eq, punto, xtol=1e-10)
+                        residuo = sistema_eq(sol)
+                        if abs(residuo[0]) < 1e-8 and abs(residuo[1]) < 1e-8:
+                            nuevo = True
+                            for eq_existente in equilibrios:
+                                if abs(sol[0] - eq_existente[0]) < 1e-6 and abs(sol[1] - eq_existente[1]) < 1e-6:
+                                    nuevo = False
+                                    break
+                            if nuevo:
+                                equilibrios.append((sol[0], sol[1]))
+                    except:
+                        pass
+                
+                for i, eq in enumerate(equilibrios):
+                    text_info.insert(tk.END, f"P{i+1} = ({eq[0]:.4f}, {eq[1]:.4f})\n")
+            
+            text_info.insert(tk.END, f"\n✅ Se encontraron {len(equilibrios)} punto(s) de equilibrio.\n\n")
+            text_info.update()
+            
+            # ═══════════════════════════════════════════════
+            # 2️⃣ PASO 2: LINEARIZACIÓN EN PUNTOS CRÍTICOS
+            # ═══════════════════════════════════════════════
+            if equilibrios:
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+                text_info.insert(tk.END, "2️⃣ PASO 2: LINEARIZACIÓN EN PUNTOS CRÍTICOS\n")
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+                
+                # Calcular Jacobiano simbólico
+                x, y = sp.symbols('x y')
+                dx_sympy = sp.sympify(dx_expr.replace('**', '^').replace('^', '**'))
+                dy_sympy = sp.sympify(dy_expr.replace('**', '^').replace('^', '**'))
+                
+                # Derivadas parciales
+                dfdx = sp.diff(dx_sympy, x)
+                dfdy = sp.diff(dx_sympy, y)
+                dgdx = sp.diff(dy_sympy, x)
+                dgdy = sp.diff(dy_sympy, y)
+                
+                text_info.insert(tk.END, "Matriz Jacobiana J(x,y):\n")
+                text_info.insert(tk.END, f"J = [∂f/∂x  ∂f/∂y] = [{dfdx}  {dfdy}]\n")
+                text_info.insert(tk.END, f"    [∂g/∂x  ∂g/∂y]   [{dgdx}  {dgdy}]\n\n")
+                
+                # Evaluar en cada punto de equilibrio
+                for i, (x_eq, y_eq) in enumerate(equilibrios):
+                    text_info.insert(tk.END, f"En P{i+1} = ({x_eq:.4f}, {y_eq:.4f}):\n")
+                    
+                    # Evaluar derivadas en el punto
+                    j11 = float(dfdx.subs([(x, x_eq), (y, y_eq)]))
+                    j12 = float(dfdy.subs([(x, x_eq), (y, y_eq)]))
+                    j21 = float(dgdx.subs([(x, x_eq), (y, y_eq)]))
+                    j22 = float(dgdy.subs([(x, x_eq), (y, y_eq)]))
+                    
+                    J = np.array([[j11, j12], [j21, j22]])
+                    jacobianos.append(J)
+                    
+                    text_info.insert(tk.END, f"J({x_eq:.4f}, {y_eq:.4f}) = [{j11:8.4f}  {j12:8.4f}]\n")
+                    text_info.insert(tk.END, f"                      [{j21:8.4f}  {j22:8.4f}]\n\n")
+                
+                text_info.update()
+            
+            # ═══════════════════════════════════════════════
+            # 3️⃣ PASO 3: AUTOVALORES Y AUTOVECTORES
+            # ═══════════════════════════════════════════════
+            if jacobianos:
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+                text_info.insert(tk.END, "3️⃣ PASO 3: AUTOVALORES Y AUTOVECTORES\n")
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+                
+                for i, (J, eq) in enumerate(zip(jacobianos, equilibrios)):
+                    text_info.insert(tk.END, f"Punto P{i+1} = ({eq[0]:.4f}, {eq[1]:.4f}):\n")
+                    
+                    # Calcular autovalores y autovectores
+                    valores, vectores = np.linalg.eig(J)
+                    autovalores_puntos.append((valores, vectores))
+                    
+                    text_info.insert(tk.END, f"Autovalores:\n")
+                    text_info.insert(tk.END, f"λ₁ = {valores[0]:.4f}\n")
+                    text_info.insert(tk.END, f"λ₂ = {valores[1]:.4f}\n\n")
+                    
+                    # Clasificación del punto
+                    lambda1, lambda2 = valores[0], valores[1]
+                    det_J = np.linalg.det(J)
+                    tr_J = np.trace(J)
+                    
+                    text_info.insert(tk.END, f"Determinante: det(J) = {det_J:.4f}\n")
+                    text_info.insert(tk.END, f"Traza: tr(J) = {tr_J:.4f}\n")
+                    
+                    # Clasificación
+                    if abs(np.imag(lambda1)) > 1e-10:  # Autovalores complejos
+                        alpha = np.real(lambda1)
+                        if alpha < -1e-10:
+                            tipo = "FOCO ESTABLE (espiral convergente)"
+                        elif alpha > 1e-10:
+                            tipo = "FOCO INESTABLE (espiral divergente)"
+                        else:
+                            tipo = "CENTRO (órbitas cerradas)"
+                    else:  # Autovalores reales
+                        if det_J < 0:
+                            tipo = "SILLA (punto de silla)"
+                        elif det_J > 0:
+                            if tr_J < 0:
+                                tipo = "NODO ESTABLE"
+                            elif tr_J > 0:
+                                tipo = "NODO INESTABLE"
+                            else:
+                                tipo = "CASO MARGINAL"
+                        else:
+                            tipo = "CASO DEGENERADO"
+                    
+                    # Determinar si es hiperbólico
+                    es_hiperbolico = all(abs(np.real(val)) > 1e-10 for val in valores)
+                    
+                    text_info.insert(tk.END, f"Tipo: {tipo}\n")
+                    text_info.insert(tk.END, f"Hiperbólico: {'SÍ' if es_hiperbolico else 'NO'}\n")
+                    
+                    if not es_hiperbolico:
+                        text_info.insert(tk.END, "⚠️ PUNTO NO HIPERBÓLICO - Se requiere análisis adicional\n")
+                    
+                    text_info.insert(tk.END, "\n" + "─"*50 + "\n")
+                
+                text_info.update()
+            
+            # ═══════════════════════════════════════════════
+            # 4️⃣ PASO 4: ANÁLISIS GLOBAL Y RESUMEN
+            # ═══════════════════════════════════════════════
+            if autovalores_puntos:
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+                text_info.insert(tk.END, "4️⃣ PASO 4: ANÁLISIS GLOBAL Y RESUMEN\n")
+                text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+                
+                # Resumen de estabilidad
+                text_info.insert(tk.END, "RESUMEN DE ESTABILIDAD:\n")
+                for i, (eq, (valores, _)) in enumerate(zip(equilibrios, autovalores_puntos)):
+                    max_real = max(np.real(valores))
+                    if max_real < -1e-10:
+                        estabilidad = "ESTABLE"
+                        emoji = "✅"
+                    elif max_real > 1e-10:
+                        estabilidad = "INESTABLE"
+                        emoji = "❌"
+                    else:
+                        estabilidad = "MARGINALMENTE ESTABLE"
+                        emoji = "⚠️"
+                    
+                    text_info.insert(tk.END, f"{emoji} P{i+1} = ({eq[0]:.4f}, {eq[1]:.4f}) → {estabilidad}\n")
+                
+                text_info.insert(tk.END, "\n")
+                text_info.update()
+            
+            # ═══════════════════════════════════════════════
+            # 5️⃣ PASO 5: GENERACIÓN DEL DIAGRAMA DE FASE
+            # ═══════════════════════════════════════════════
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+            text_info.insert(tk.END, "5️⃣ PASO 5: GENERACIÓN DEL DIAGRAMA DE FASE\n")
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+            
+            def sistema_nl(t, XY):
+                x, y = XY
+                dx = eval(dx_expr, {"x": x, "y": y, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                dy = eval(dy_expr, {"x": x, "y": y, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                return [dx, dy]
+            
+            # Limpiar gráfico
+            ax.clear()
+            
+            # Determinar rango apropiado basado en puntos de equilibrio
+            if equilibrios:
+                x_coords = [eq[0] for eq in equilibrios]
+                y_coords = [eq[1] for eq in equilibrios]
+                x_center = np.mean(x_coords)
+                y_center = np.mean(y_coords)
+                x_range_eq = max(abs(max(x_coords) - x_center), abs(min(x_coords) - x_center), 2)
+                y_range_eq = max(abs(max(y_coords) - y_center), abs(min(y_coords) - y_center), 2)
+                x_lim = max(x_range_eq * 2, 3)
+                y_lim = max(y_range_eq * 2, 3)
+            else:
+                x_center, y_center = 0, 0
+                x_lim, y_lim = 5, 5
+            
+            # Campo vectorial
+            x_range = np.linspace(x_center - x_lim, x_center + x_lim, 20)
+            y_range = np.linspace(y_center - y_lim, y_center + y_lim, 20)
+            X, Y = np.meshgrid(x_range, y_range)
+            U, V = np.zeros_like(X), np.zeros_like(Y)
+            
+            for i in range(len(x_range)):
+                for j in range(len(y_range)):
+                    try:
+                        dXY = sistema_nl(0, [X[j,i], Y[j,i]])
+                        U[j,i], V[j,i] = dXY[0], dXY[1]
+                    except:
+                        U[j,i], V[j,i] = 0, 0
+            
+            # Normalizar para mejor visualización
+            M = np.sqrt(U**2 + V**2)
+            M[M == 0] = 1
+            U_norm, V_norm = U/M, V/M
+            
+            ax.quiver(X, Y, U_norm, V_norm, alpha=0.5, color='gray', scale=25, width=0.003)
+            
+            # Puntos de equilibrio con colores según estabilidad
+            if equilibrios and autovalores_puntos:
+                for i, (eq, (valores, _)) in enumerate(zip(equilibrios, autovalores_puntos)):
+                    max_real = max(np.real(valores))
+                    if max_real < -1e-10:
+                        color = 'green'
+                        marker = 'o'
+                    elif max_real > 1e-10:
+                        color = 'red' 
+                        marker = 's'
+                    else:
+                        color = 'orange'
+                        marker = '^'
+                    
+                    ax.scatter(eq[0], eq[1], color=color, s=150, zorder=5, 
+                              marker=marker, edgecolors='black', linewidth=2,
+                              label=f'P{i+1} ({["Estable", "Inestable", "Marginal"][0 if max_real < -1e-10 else 1 if max_real > 1e-10 else 2]})' if i < 3 else "")
+            
+            # Trayectorias desde múltiples condiciones iniciales
+            t_span = [0, 15]
+            t_eval = np.linspace(0, 15, 1000)
+            
+            # Trayectoria principal (condición inicial del usuario)
+            try:
+                sol = solve_ivp(sistema_nl, t_span, [x0, y0], t_eval=t_eval, dense_output=True)
+                if sol.success:
+                    ax.plot(sol.y[0], sol.y[1], 'b-', linewidth=3, label='Trayectoria principal', alpha=0.8)
+                    ax.scatter(x0, y0, color='blue', s=120, zorder=6, marker='s', 
+                              edgecolors='white', linewidth=2, label='Condición inicial')
+            except:
+                pass
+            
+            # Trayectorias adicionales desde puntos estratégicos
+            condiciones_extra = []
+            
+            # Agregar puntos cerca de equilibrios
+            for eq in equilibrios[:4]:  # Máximo 4 equilibrios para no saturar
+                for delta in [0.1, -0.1]:
+                    condiciones_extra.extend([
+                        (eq[0] + delta, eq[1]), 
+                        (eq[0], eq[1] + delta),
+                        (eq[0] + delta, eq[1] + delta)
+                    ])
+            
+            # Agregar algunos puntos adicionales
+            condiciones_extra.extend([
+                (x_center + x_lim*0.3, y_center + y_lim*0.3),
+                (x_center - x_lim*0.3, y_center - y_lim*0.3),
+                (x_center + x_lim*0.5, y_center),
+                (x_center, y_center + y_lim*0.5),
+                (x_center - x_lim*0.5, y_center),
+                (x_center, y_center - y_lim*0.5)
+            ])
+            
+            colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(condiciones_extra)))
+            
+            for (xi, yi), color in zip(condiciones_extra[:12], colors[:12]):  # Limitar a 12 trayectorias
+                try:
+                    sol_extra = solve_ivp(sistema_nl, t_span, [xi, yi], t_eval=t_eval)
+                    if sol_extra.success and len(sol_extra.y[0]) > 10:
+                        # Filtrar puntos que se van al infinito
+                        mask = (np.abs(sol_extra.y[0]) < x_center + 2*x_lim) & (np.abs(sol_extra.y[1]) < y_center + 2*y_lim)
+                        if np.any(mask):
+                            end_idx = np.argmax(~mask) if not np.all(mask) else len(sol_extra.y[0])
+                            if end_idx == 0:
+                                end_idx = len(sol_extra.y[0])
+                            ax.plot(sol_extra.y[0][:end_idx], sol_extra.y[1][:end_idx], 
+                                   color=color, alpha=0.6, linewidth=1.5)
+                except:
+                    pass
+            
+            # Configurar gráfico
+            ax.set_xlim(x_center - x_lim, x_center + x_lim)
+            ax.set_ylim(y_center - y_lim, y_center + y_lim)
+            ax.set_xlabel('x', fontsize=12)
+            ax.set_ylabel('y', fontsize=12)
+            ax.set_title(f'Diagrama de Fase: dx/dt = {dx_expr}, dy/dt = {dy_expr}', fontsize=11)
+            ax.grid(True, alpha=0.3)
+            ax.legend(loc='best', fontsize=9)
+            
+            canvas.draw()
+            
+            # Mensaje final
+            text_info.insert(tk.END, "✅ ANÁLISIS COMPLETO FINALIZADO\n")
+            text_info.insert(tk.END, f"📊 Encontrados {len(equilibrios)} punto(s) de equilibrio\n")
+            text_info.insert(tk.END, f"🎨 Diagrama de fase generado con trayectorias múltiples\n\n")
+            
+        except Exception as e:
+            text_info.insert(tk.END, f"❌ Error en análisis completo: {e}\n")
+            messagebox.showerror("Error", f"Error en análisis: {e}")
+
+
+# ============================================================
 # 🧭 Ventana modo no homogeneo
 # ============================================================
 
 def abrir_modo_no_homogeneo():
     wh = tk.Toplevel()
-    wh.title("Sistema dinámico 2D - Modo No homogéneo")
-    wh.geometry("1200x900")
+    wh.title("Sistema dinámico 2D - Modo No homogéneo X' = AX + f(t)")
+    wh.geometry("1400x950")
+    wh.minsize(1200, 800)
 
     # --- Dividir ventana
     frame_main = tk.Frame(wh)
@@ -880,46 +1358,96 @@ def abrir_modo_no_homogeneo():
 
     # === Entradas ===
     frame_inputs = tk.Frame(frame_left)
-    frame_inputs.pack(pady=5)
+    frame_inputs.pack(pady=10)
 
-    tk.Label(frame_inputs, text="dx =", font=("Consolas", 12)).grid(row=0, column=0)
-    entry_fx = tk.Entry(frame_inputs, width=25, font=("Consolas", 12))
-    entry_fx.grid(row=0, column=1)
-    entry_fx.insert(0, "2*x - 5*y")
+    # Matriz A (parte homogénea)
+    tk.Label(frame_inputs, text="Matriz A:", font=("Consolas", 12, "bold")).grid(row=0, column=0, columnspan=2, sticky="w")
+    
+    tk.Label(frame_inputs, text="a₁₁:", font=("Consolas", 10)).grid(row=1, column=0)
+    entry_a11 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_a11.grid(row=1, column=1)
+    entry_a11.insert(0, "0")
+    
+    tk.Label(frame_inputs, text="a₁₂:", font=("Consolas", 10)).grid(row=1, column=2)
+    entry_a12 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_a12.grid(row=1, column=3)
+    entry_a12.insert(0, "-1")
+    
+    tk.Label(frame_inputs, text="a₂₁:", font=("Consolas", 10)).grid(row=2, column=0)
+    entry_a21 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_a21.grid(row=2, column=1)
+    entry_a21.insert(0, "1")
+    
+    tk.Label(frame_inputs, text="a₂₂:", font=("Consolas", 10)).grid(row=2, column=2)
+    entry_a22 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_a22.grid(row=2, column=3)
+    entry_a22.insert(0, "0")
 
-    tk.Label(frame_inputs, text="dy =", font=("Consolas", 12)).grid(row=1, column=0)
-    entry_fy = tk.Entry(frame_inputs, width=25, font=("Consolas", 12))
-    entry_fy.grid(row=1, column=1)
-    entry_fy.insert(0, "4*x - 2*y")
+    # Función forzante f(t)
+    tk.Label(frame_inputs, text="Función forzante f(t):", font=("Consolas", 12, "bold")).grid(row=3, column=0, columnspan=4, sticky="w", pady=(10,0))
+    
+    tk.Label(frame_inputs, text="f₁(t):", font=("Consolas", 10)).grid(row=4, column=0)
+    entry_f1 = tk.Entry(frame_inputs, width=20, font=("Consolas", 10))
+    entry_f1.grid(row=4, column=1, columnspan=2)
+    entry_f1.insert(0, "1")
+    
+    tk.Label(frame_inputs, text="f₂(t):", font=("Consolas", 10)).grid(row=5, column=0)
+    entry_f2 = tk.Entry(frame_inputs, width=20, font=("Consolas", 10))
+    entry_f2.grid(row=5, column=1, columnspan=2)
+    entry_f2.insert(0, "0")
 
-    tk.Label(frame_inputs, text="f(t) =", font=("Consolas", 12)).grid(row=2, column=0)
-    entry_ft = tk.Entry(frame_inputs, width=25, font=("Consolas", 12))
-    entry_ft.grid(row=2, column=1)
-    entry_ft.insert(0, "np.sin(t)")
-
-    tk.Label(frame_inputs, text="g(t) =", font=("Consolas", 12)).grid(row=3, column=0)
-    entry_gt = tk.Entry(frame_inputs, width=25, font=("Consolas", 12))
-    entry_gt.grid(row=3, column=1)
-    entry_gt.insert(0, "np.cos(t)")
-
-    tk.Label(frame_inputs, text="x₀:", font=("Consolas", 12)).grid(row=0, column=2)
-    entry_x0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 12))
-    entry_x0.grid(row=0, column=3)
+    # Condiciones iniciales
+    tk.Label(frame_inputs, text="Condiciones iniciales:", font=("Consolas", 12, "bold")).grid(row=6, column=0, columnspan=4, sticky="w", pady=(10,0))
+    
+    tk.Label(frame_inputs, text="x₀:", font=("Consolas", 10)).grid(row=7, column=0)
+    entry_x0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_x0.grid(row=7, column=1)
     entry_x0.insert(0, "1")
 
-    tk.Label(frame_inputs, text="y₀:", font=("Consolas", 12)).grid(row=1, column=2)
-    entry_y0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 12))
-    entry_y0.grid(row=1, column=3)
-    entry_y0.insert(0, "1")
+    tk.Label(frame_inputs, text="y₀:", font=("Consolas", 10)).grid(row=7, column=2)
+    entry_y0 = tk.Entry(frame_inputs, width=8, font=("Consolas", 10))
+    entry_y0.grid(row=7, column=3)
+    entry_y0.insert(0, "0")
 
-    tk.Label(frame_inputs, text="Periodo T:", font=("Consolas", 12)).grid(row=2, column=2)
-    entry_T = tk.Entry(frame_inputs, width=8, font=("Consolas", 12))
-    entry_T.grid(row=2, column=3)
-    entry_T.insert(0, "6.283")
+    # Ejemplos predefinidos
+    frame_ejemplos = tk.Frame(frame_inputs)
+    frame_ejemplos.grid(row=8, column=0, columnspan=4, pady=10, sticky="ew")
+    
+    tk.Label(frame_ejemplos, text="Ejemplos:", font=("Consolas", 11, "bold")).pack(anchor="w")
+    
+    def cargar_ejemplo(num):
+        ejemplos = {
+            1: {"A": [[0, -1], [1, 0]], "f": ["1", "0"], "x0": [1, 0]},  # Ejemplo 1 de la imagen
+            2: {"A": [[1, 2], [2, 1]], "f": ["1", "-3"], "x0": [0, 0]},   # Ejemplo 2
+            3: {"A": [[4, -1], [2, 1]], "f": ["0", "1"], "x0": [0, 0]}, # Ejemplo 3
+            4: {"A": [[-2, 1], [1, -2]], "f": ["1", "0"], "x0": [0, 0]}, # Ejemplo 4
+            5: {"A": [[-1, 2], [0, -1]], "f": ["-8", "0"], "x0": [0, 0]} # Ejemplo 5
+        }
+        ej = ejemplos[num]
+        entry_a11.delete(0, tk.END); entry_a11.insert(0, str(ej["A"][0][0]))
+        entry_a12.delete(0, tk.END); entry_a12.insert(0, str(ej["A"][0][1]))
+        entry_a21.delete(0, tk.END); entry_a21.insert(0, str(ej["A"][1][0]))
+        entry_a22.delete(0, tk.END); entry_a22.insert(0, str(ej["A"][1][1]))
+        entry_f1.delete(0, tk.END); entry_f1.insert(0, ej["f"][0])
+        entry_f2.delete(0, tk.END); entry_f2.insert(0, ej["f"][1])
+        entry_x0.delete(0, tk.END); entry_x0.insert(0, str(ej["x0"][0]))
+        entry_y0.delete(0, tk.END); entry_y0.insert(0, str(ej["x0"][1]))
 
-    show_poincare = tk.BooleanVar()
-    tk.Checkbutton(frame_inputs, text="Mostrar sección de Poincaré",
-                   variable=show_poincare, font=("Consolas", 12)).grid(row=3, column=2, columnspan=2)
+    btn_frame = tk.Frame(frame_ejemplos)
+    btn_frame.pack(fill="x")
+    for i in range(1, 6):
+        tk.Button(btn_frame, text=f"Ej{i}", font=("Consolas", 9), width=4,
+                 command=lambda x=i: cargar_ejemplo(x)).pack(side=tk.LEFT, padx=2)
+
+    # === Botones ===
+    btns = tk.Frame(frame_left, relief=tk.RAISED, bd=2, bg="#e0e0e0")
+    btns.pack(pady=15, fill=tk.X)
+    tk.Button(btns, text="RESOLVER ANALÍTICAMENTE", bg="#4CAF50", fg="white",
+              font=("Consolas", 12, "bold"), command=lambda: resolver_no_homogeneo(), 
+              width=25, height=2).pack(side=tk.LEFT, padx=10, expand=True)
+    tk.Button(btns, text="GRAFICAR COMPARACIÓN", bg="#2196F3", fg="white",
+              font=("Consolas", 12, "bold"), command=lambda: graficar_comparacion(),
+              width=25, height=2).pack(side=tk.LEFT, padx=10, expand=True)
 
     # === Canvas ===
     fig, ax = plt.subplots(figsize=(7.5, 7.5))
@@ -929,109 +1457,264 @@ def abrir_modo_no_homogeneo():
     # === Panel derecho ===
     tk.Label(frame_right, text="📊 Análisis del sistema no homogéneo:",
              bg="#f4f4f4", font=("Consolas", 12, "bold")).pack(anchor="w", pady=(0, 5))
-    text_info = tk.Text(frame_right, width=45, height=35, font=("Consolas", 11), bg="#f9f9f9")
+    text_info = tk.Text(frame_right, width=50, height=40, font=("Consolas", 10), bg="#f9f9f9")
     text_info.pack(fill=tk.BOTH, expand=True)
 
-    # === Función principal ===
-    def graficar_no_homogeneo():
-        fx_text = entry_fx.get().strip()
-        fy_text = entry_fy.get().strip()
-        ft_text = entry_ft.get().strip()
-        gt_text = entry_gt.get().strip()
+    # === Función de resolución analítica ===
+    def resolver_no_homogeneo():
         text_info.delete("1.0", tk.END)
-
         try:
+            # Obtener matriz A
+            a11 = float(entry_a11.get())
+            a12 = float(entry_a12.get())
+            a21 = float(entry_a21.get())
+            a22 = float(entry_a22.get())
+            A = np.array([[a11, a12], [a21, a22]])
+            
+            # Obtener función forzante f(t)
+            f1_text = entry_f1.get().strip()
+            f2_text = entry_f2.get().strip()
+            
+            # Condiciones iniciales
             x0 = float(entry_x0.get())
             y0 = float(entry_y0.get())
-        except ValueError:
-            messagebox.showerror("Error", "x₀ e y₀ deben ser números.")
-            return
+            
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n")
+            text_info.insert(tk.END, "🔧 RESOLUCIÓN ANALÍTICA DE SISTEMA NO HOMOGÉNEO\n")
+            text_info.insert(tk.END, "═══════════════════════════════════════════════\n\n")
+            
+            # Mostrar el sistema
+            text_info.insert(tk.END, f"Sistema: X' = AX + f(t)\n\n")
+            text_info.insert(tk.END, f"Matriz A = [{a11:g}  {a12:g}]\n")
+            text_info.insert(tk.END, f"           [{a21:g}  {a22:g}]\n\n")
+            text_info.insert(tk.END, f"f(t) = [{f1_text}]\n")
+            text_info.insert(tk.END, f"       [{f2_text}]\n\n")
+            text_info.insert(tk.END, f"Condiciones iniciales: X(0) = [{x0:g}, {y0:g}]ᵀ\n\n")
+            
+            # 1. Resolver sistema homogéneo X' = AX
+            text_info.insert(tk.END, "━━━ PASO 1: Sistema homogéneo X' = AX ━━━\n\n")
+            
+            valores = np.linalg.eigvals(A)
+            vectores, vectores_complejos = calcular_autovectores(A, valores)
+            
+            text_info.insert(tk.END, f"Autovalores: λ₁ = {valores[0]:.4f}, λ₂ = {valores[1]:.4f}\n")
+            
+            # Mostrar autovectores
+            if np.iscomplexobj(valores[0]) or abs(valores[0].imag) > 1e-10:
+                idx = 0 if np.imag(valores[0]) > 0 else 1
+                text_info.insert(tk.END, f"Autovector: v = {formatear_autovector_complejo(vectores_complejos[idx])}\n\n")
+            else:
+                text_info.insert(tk.END, f"Autovectores: v₁ = [{vectores[0,0]:.4f}, {vectores[1,0]:.4f}]ᵀ\n")
+                text_info.insert(tk.END, f"              v₂ = [{vectores[0,1]:.4f}, {vectores[1,1]:.4f}]ᵀ\n\n")
+            
+            # Solución homogénea
+            text_info.insert(tk.END, "Solución homogénea Xₕ(t):\n")
+            
+            if np.iscomplexobj(valores[0]) or abs(valores[0].imag) > 1e-10:
+                # Caso complejo
+                alpha = valores[0].real
+                beta = abs(valores[0].imag)
+                v_complex = vectores_complejos[0 if np.imag(valores[0]) > 0 else 1]
+                a1, a2, b1, b2 = canonicalizar_a_b(v_complex)
+                
+                text_info.insert(tk.END, f"α = {alpha:.4f}, β = {beta:.4f}\n")
+                text_info.insert(tk.END, f"a⃗ = ({a1}, {a2}), b⃗ = ({b1}, {b2})\n")
+                if abs(alpha) < 1e-12:
+                    text_info.insert(tk.END, f"Xₕ(t) = C₁[a⃗cos({beta:.4f}t) - b⃗sen({beta:.4f}t)] + C₂[a⃗sen({beta:.4f}t) + b⃗cos({beta:.4f}t)]\n\n")
+                else:
+                    text_info.insert(tk.END, f"Xₕ(t) = e^({alpha:.4f}t)[C₁[a⃗cos({beta:.4f}t) - b⃗sen({beta:.4f}t)] + C₂[a⃗sen({beta:.4f}t) + b⃗cos({beta:.4f}t)]]\n\n")
+            else:
+                # Caso real
+                lambda1, lambda2 = valores[0], valores[1]
+                v1, v2 = vectores[:, 0], vectores[:, 1]
+                text_info.insert(tk.END, f"Xₕ(t) = C₁e^({lambda1:.4f}t)[{v1[0]:.4f}, {v1[1]:.4f}]ᵀ + C₂e^({lambda2:.4f}t)[{v2[0]:.4f}, {v2[1]:.4f}]ᵀ\n\n")
+            
+            # 2. Encontrar solución particular
+            text_info.insert(tk.END, "━━━ PASO 2: Solución particular Xₚ(t) ━━━\n\n")
+            
+            # Análisis de la función forzante
+            text_info.insert(tk.END, "Análisis de f(t):\n")
+            
+            # Determinar tipo de función forzante
+            es_constante = True
+            es_polinomial = False
+            es_exponencial = False
+            es_trigonometrica = False
+            
+            try:
+                # Evaluar en varios puntos para detectar el tipo
+                f1_val_0 = eval(f1_text.replace('t', '0'), {"np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f1_val_1 = eval(f1_text.replace('t', '1'), {"np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f2_val_0 = eval(f2_text.replace('t', '0'), {"np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f2_val_1 = eval(f2_text.replace('t', '1'), {"np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                
+                if abs(f1_val_0 - f1_val_1) > 1e-10 or abs(f2_val_0 - f2_val_1) > 1e-10:
+                    es_constante = False
+                
+                # Detectar tipos específicos
+                if 'sin' in f1_text or 'cos' in f1_text or 'sin' in f2_text or 'cos' in f2_text:
+                    es_trigonometrica = True
+                elif 'exp' in f1_text or 'exp' in f2_text:
+                    es_exponencial = True
+                elif 't' in f1_text or 't' in f2_text:
+                    es_polinomial = True
+                    
+            except:
+                pass
+            
+            if es_constante:
+                text_info.insert(tk.END, f"f(t) es constante: f(t) = [{f1_val_0:.4f}, {f2_val_0:.4f}]ᵀ\n")
+                text_info.insert(tk.END, "Método: Xₚ = constante\n")
+                text_info.insert(tk.END, "Sustituyendo 0 = AXₚ + f(t):\n")
+                
+                # Resolver -AXₚ = f
+                try:
+                    f_const = np.array([f1_val_0, f2_val_0])
+                    if abs(np.linalg.det(A)) > 1e-10:
+                        Xp = np.linalg.solve(-A, f_const)
+                        text_info.insert(tk.END, f"Xₚ = [{Xp[0]:.4f}, {Xp[1]:.4f}]ᵀ\n\n")
+                    else:
+                        text_info.insert(tk.END, "Sistema singular - solución particular no única\n\n")
+                except:
+                    text_info.insert(tk.END, "Error al calcular solución particular\n\n")
+                    
+            elif es_trigonometrica:
+                text_info.insert(tk.END, "f(t) contiene funciones trigonométricas\n")
+                text_info.insert(tk.END, "Método: Xₚ = a⃗cos(ωt) + b⃗sen(ωt)\n\n")
+            elif es_exponencial:
+                text_info.insert(tk.END, "f(t) contiene funciones exponenciales\n")
+                text_info.insert(tk.END, "Método: Xₚ = a⃗e^(rt)\n\n")
+            elif es_polinomial:
+                text_info.insert(tk.END, "f(t) es polinomial en t\n")
+                text_info.insert(tk.END, "Método: Xₚ = a⃗t^n + b⃗t^(n-1) + ...\n\n")
+            
+            # 3. Solución general
+            text_info.insert(tk.END, "━━━ PASO 3: Solución general ━━━\n\n")
+            text_info.insert(tk.END, "X(t) = Xₕ(t) + Xₚ(t)\n\n")
+            
+            # 4. Aplicar condiciones iniciales
+            text_info.insert(tk.END, "━━━ PASO 4: Condiciones iniciales ━━━\n\n")
+            text_info.insert(tk.END, f"X(0) = [{x0:g}, {y0:g}]ᵀ\n")
+            text_info.insert(tk.END, "Resolver para C₁ y C₂...\n\n")
+            
+            # 5. Análisis de comportamiento
+            text_info.insert(tk.END, "━━━ PASO 5: Análisis de comportamiento ━━━\n\n")
+            
+            # Determinar estabilidad del sistema homogéneo
+            max_real_part = max(np.real(valores))
+            if max_real_part < -1e-10:
+                comportamiento = "ESTABLE - La perturbación f(t) no cambia la estabilidad asintótica"
+            elif max_real_part > 1e-10:
+                comportamiento = "INESTABLE - La perturbación f(t) puede ser dominada por el crecimiento exponencial"
+            else:
+                comportamiento = "MARGINALMENTE ESTABLE - La perturbación f(t) puede cambiar significativamente el comportamiento"
+            
+            text_info.insert(tk.END, f"Comportamiento: {comportamiento}\n\n")
+            
+            # Análisis de preservación/ruptura
+            text_info.insert(tk.END, "🔍 PRESERVACIÓN vs RUPTURA DE COMPORTAMIENTOS:\n\n")
+            
+            if es_constante:
+                text_info.insert(tk.END, "• Perturbación CONSTANTE:\n")
+                text_info.insert(tk.END, "  - Desplaza el punto de equilibrio\n")
+                text_info.insert(tk.END, "  - PRESERVA el tipo de estabilidad\n")
+                text_info.insert(tk.END, "  - Las trayectorias mantienen su forma cualitativa\n\n")
+            elif es_trigonometrica:
+                text_info.insert(tk.END, "• Perturbación PERIÓDICA:\n")
+                text_info.insert(tk.END, "  - Introduce oscilaciones forzadas\n")
+                if max_real_part < 0:
+                    text_info.insert(tk.END, "  - PRESERVA estabilidad (oscilaciones amortiguadas)\n")
+                else:
+                    text_info.insert(tk.END, "  - Puede ROMPER estabilidad (resonancia)\n")
+                text_info.insert(tk.END, "  - Posible aparición de ciclos límite\n\n")
+            elif es_exponencial:
+                text_info.insert(tk.END, "• Perturbación EXPONENCIAL:\n")
+                text_info.insert(tk.END, "  - Puede ROMPER completamente el comportamiento\n")
+                text_info.insert(tk.END, "  - Competencia entre crecimiento homogéneo y forzante\n\n")
+            
+        except Exception as e:
+            text_info.insert(tk.END, f"❌ Error en el análisis: {e}\n")
 
-        def system(t, XY):
-            x, y = XY
-            dx = eval(fx_text, {"x": x, "y": y, "t": t, "np": np})
-            dy = eval(fy_text, {"x": x, "y": y, "t": t, "np": np})
-            dx += eval(ft_text, {"t": t, "np": np})
-            dy += eval(gt_text, {"t": t, "np": np})
-            return [dx, dy]
-
-        # --- Jacobiano homogéneo (sin f(t), g(t))
-        h = 1e-5
-        dfdx = (eval(fx_text, {"x": h, "y": 0}) - eval(fx_text, {"x": -h, "y": 0})) / (2*h)
-        dfdy = (eval(fx_text, {"x": 0, "y": h}) - eval(fx_text, {"x": 0, "y": -h})) / (2*h)
-        dgdx = (eval(fy_text, {"x": h, "y": 0}) - eval(fy_text, {"x": -h, "y": 0})) / (2*h)
-        dgdy = (eval(fy_text, {"x": 0, "y": h}) - eval(fy_text, {"x": 0, "y": -h})) / (2*h)
-        A = np.array([[dfdx, dfdy], [dgdx, dgdy]])
-        valores = np.linalg.eigvals(A)
-        vectores, vectores_complejos = calcular_autovectores(A, valores)
-        tau = np.trace(A)
-        Delta = np.linalg.det(A)
-        D = tau**2 - 4*Delta
-
-        text_info.insert(tk.END, f"Matriz Jacobiana (parte homogénea):\n{A}\n\n")
-        text_info.insert(tk.END, f"Autovalores:\n λ₁={valores[0]:.4f}, λ₂={valores[1]:.4f}\n")
-        # Mostrar autovectores en el mismo formato
-        if np.iscomplexobj(valores[0]) or abs(valores[0].imag) > 1e-10:
-            text_info.insert(tk.END, f"Autovector:\n{formatear_autovector_complejo(vectores_complejos[0])}\n\n")
-        else:
-            text_info.insert(tk.END, f"Autovectores:\n{vectores}\n\n")
-        text_info.insert(tk.END, f"Invariantes: τ={tau:.4f}, Δ={Delta:.4f}, D={D:.4f}\n\n")
-
-        # === Campo vectorial ===
-        ax.clear()
-        x_min, x_max = -10, 10
-        y_min, y_max = -10, 10
-        n_points = 60
-        X, Y = np.meshgrid(np.linspace(x_min, x_max, n_points),
-                           np.linspace(y_min, y_max, n_points))
-        U, V = np.zeros_like(X), np.zeros_like(Y)
-        for i in range(n_points):
-            for j in range(n_points):
-                dx, dy = system(0, [X[i, j], Y[i, j]])
-                norm = np.sqrt(dx**2 + dy**2)
-                if norm != 0:
-                    U[i, j], V[i, j] = dx/norm, dy/norm
-
-        ax.quiver(X, Y, U, V, color='gray', alpha=0.4, scale=25, scale_units='xy')
-        ax.contour(X, Y, U, levels=[0], colors='blue', linestyles='--')
-        ax.contour(X, Y, V, levels=[0], colors='red', linestyles='--')
-
-        # === Trayectoria temporal ===
-        T = float(entry_T.get())
-        t_final = 10*T if show_poincare.get() else 20
-        sol = solve_ivp(system, [0, t_final], [x0, y0], t_eval=np.linspace(0, t_final, 1500))
-
-        if sol.success and sol.y.size > 0:
-            x_traj, y_traj = sol.y
-            ax.plot(x_traj, y_traj, color='green', lw=2, label="Trayectoria")
-            ax.scatter(x_traj[0], y_traj[0], color='black', s=50, label="Inicial")
-
-        # === Poincaré ===
-        if show_poincare.get():
-            x_p, y_p = [], []
-            for n in range(1, 11):
-                tn = n*T
-                xn = np.interp(tn, sol.t, sol.y[0])
-                yn = np.interp(tn, sol.t, sol.y[1])
-                x_p.append(xn)
-                y_p.append(yn)
-            ax.scatter(x_p, y_p, color='magenta', s=50, zorder=4, label="Poincaré")
-
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
-        ax.grid(True)
-        ax.set_title("Campo y trayectoria (No homogéneo)")
-        ax.legend()
-        canvas.draw()
-
-    # === FRAME BOTÓN (separado para que no se tape con el gráfico) ===
-    frame_button = tk.Frame(frame_left)
-    frame_button.pack(pady=10)
-
-    btn_graficar = tk.Button(frame_button, text="GRAFICAR", bg="#4CAF50", fg="white",
-                             font=("Consolas", 14, "bold"), width=20, height=1,
-                             command=graficar_no_homogeneo)
-    btn_graficar.pack()
+    # === Función de graficación comparativa ===
+    def graficar_comparacion():
+        try:
+            # Obtener parámetros
+            a11 = float(entry_a11.get())
+            a12 = float(entry_a12.get())
+            a21 = float(entry_a21.get())
+            a22 = float(entry_a22.get())
+            A = np.array([[a11, a12], [a21, a22]])
+            
+            f1_text = entry_f1.get().strip()
+            f2_text = entry_f2.get().strip()
+            x0 = float(entry_x0.get())
+            y0 = float(entry_y0.get())
+            
+            # Sistema homogéneo
+            def sistema_homogeneo(t, XY):
+                return A @ XY
+            
+            # Sistema no homogéneo
+            def sistema_no_homogeneo(t, XY):
+                f1_val = eval(f1_text, {"t": t, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f2_val = eval(f2_text, {"t": t, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                return A @ XY + np.array([f1_val, f2_val])
+            
+            # Resolver ambos sistemas
+            t_span = [0, 10]
+            t_eval = np.linspace(0, 10, 1000)
+            
+            sol_hom = solve_ivp(sistema_homogeneo, t_span, [x0, y0], t_eval=t_eval)
+            sol_no_hom = solve_ivp(sistema_no_homogeneo, t_span, [x0, y0], t_eval=t_eval)
+            
+            # Graficar
+            ax.clear()
+            
+            if sol_hom.success and sol_no_hom.success:
+                # Trayectorias en el plano de fase
+                ax.plot(sol_hom.y[0], sol_hom.y[1], 'b--', linewidth=2, label='Sistema homogéneo', alpha=0.7)
+                ax.plot(sol_no_hom.y[0], sol_no_hom.y[1], 'r-', linewidth=2, label='Sistema no homogéneo')
+                
+                # Puntos iniciales
+                ax.scatter(x0, y0, color='black', s=100, zorder=5, label='Condición inicial')
+                
+                # Campo vectorial del sistema no homogéneo (en t=0)
+                x_range = np.linspace(-5, 5, 15)
+                y_range = np.linspace(-5, 5, 15)
+                X, Y = np.meshgrid(x_range, y_range)
+                U, V = np.zeros_like(X), np.zeros_like(Y)
+                
+                for i in range(len(x_range)):
+                    for j in range(len(y_range)):
+                        dXY = sistema_no_homogeneo(0, [X[j,i], Y[j,i]])
+                        U[j,i], V[j,i] = dXY[0], dXY[1]
+                
+                # Normalizar para mejor visualización
+                M = np.sqrt(U**2 + V**2)
+                M[M == 0] = 1
+                U_norm, V_norm = U/M, V/M
+                
+                ax.quiver(X, Y, U_norm, V_norm, alpha=0.3, color='gray', scale=20)
+                
+                ax.set_xlabel('x(t)')
+                ax.set_ylabel('y(t)')
+                ax.set_title('Comparación: Sistema homogéneo vs No homogéneo')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                
+                # Ajustar límites
+                all_x = np.concatenate([sol_hom.y[0], sol_no_hom.y[0]])
+                all_y = np.concatenate([sol_hom.y[1], sol_no_hom.y[1]])
+                margin = 0.1
+                x_range = np.ptp(all_x)
+                y_range = np.ptp(all_y)
+                ax.set_xlim(np.min(all_x) - margin*x_range, np.max(all_x) + margin*x_range)
+                ax.set_ylim(np.min(all_y) - margin*y_range, np.max(all_y) + margin*y_range)
+                
+            canvas.draw()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en la graficación: {e}")
 
 
 
@@ -1048,8 +1731,8 @@ tk.Label(root, text="Elegí el tipo de sistema dinámico", font=("Consolas", 13,
 tk.Button(root, text="🔹 Modo Numérico clásico", font=("Consolas", 12), width=30,
           command=abrir_modo_numerico).pack(pady=10)
 
-tk.Button(root, text="🔸 Modo Simbólico / No lineal", font=("Consolas", 12), width=30,
-          command=abrir_modo_simbolico).pack(pady=10)
+tk.Button(root, text="🔸 Modo Sistemas No Lineales", font=("Consolas", 12), width=30,
+          command=abrir_modo_no_lineal).pack(pady=10)
 
 tk.Button(root, text="🔸 Modo No homogeneo", font=("Consolas", 12), width=30,
           command=abrir_modo_no_homogeneo).pack(pady=10)
