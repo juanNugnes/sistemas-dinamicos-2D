@@ -303,6 +303,17 @@ def abrir_modo_numerico():
               font=("Consolas", 14, "bold"), command=lambda: verificar_solucion(),
               width=15, height=2).pack(side=tk.LEFT, padx=10, expand=True)
 
+    # === Opciones de analisis ===
+    opts_frame = tk.Frame(frame_left)
+    opts_frame.pack(pady=(10, 0), anchor="w")
+    var_mostrar_niveles_H = tk.BooleanVar(value=True)
+    tk.Checkbutton(
+        opts_frame,
+        text="Mostrar niveles de H si es Hamiltoniano",
+        variable=var_mostrar_niveles_H,
+        font=("Consolas", 10)
+    ).pack(side=tk.LEFT)
+
     # === Canvas ===
     fig, ax = plt.subplots(figsize=(7.5, 7.5))
     canvas = FigureCanvasTkAgg(fig, master=frame_left)
@@ -867,7 +878,7 @@ def abrir_modo_simbolico():
 # 🔸 Ventana MODO SISTEMAS NO LINEALES
 # ============================================================
 
-def abrir_modo_no_lineal():
+def abrir_modo_no_lineal(p_dx=None, p_dy=None, p_x0=None, p_y0=None):
     wnl = tk.Toplevel()
     wnl.title("Análisis de Sistemas Dinámicos No Lineales")
     wnl.geometry("1500x1000")
@@ -913,6 +924,19 @@ def abrir_modo_no_lineal():
     entry_y0.grid(row=4, column=3)
     entry_y0.insert(0, "0.5")
 
+    # Sobrescribir con parámetros si fueron provistos
+    try:
+        if p_dx is not None:
+            entry_dx.delete(0, tk.END); entry_dx.insert(0, str(p_dx))
+        if p_dy is not None:
+            entry_dy.delete(0, tk.END); entry_dy.insert(0, str(p_dy))
+        if p_x0 is not None:
+            entry_x0.delete(0, tk.END); entry_x0.insert(0, str(p_x0))
+        if p_y0 is not None:
+            entry_y0.delete(0, tk.END); entry_y0.insert(0, str(p_y0))
+    except Exception:
+        pass
+
     # Ejemplos predefinidos de la imagen
     frame_ejemplos = tk.Frame(frame_inputs)
     frame_ejemplos.grid(row=5, column=0, columnspan=4, pady=10, sticky="ew")
@@ -942,6 +966,19 @@ def abrir_modo_no_lineal():
     for i in [1, 2, 3, 4, 11, 12, 13, 14]:
         tk.Button(btn_frame, text=f"Ej{i}", font=("Consolas", 8), width=4,
                  command=lambda x=i: cargar_ejemplo_nl(x)).pack(side=tk.LEFT, padx=1)
+
+    # Botón con nombre para el caso Romeo–Julieta
+    tk.Button(
+        btn_frame,
+        text="Romeo y Julieta",
+        font=("Consolas", 8),
+        command=lambda: (
+            entry_dx.delete(0, tk.END), entry_dx.insert(0, "x*(1 - x**2 - y**2)"),
+            entry_dy.delete(0, tk.END), entry_dy.insert(0, "-y*(1 - x**2 - y**2)"),
+            entry_x0.delete(0, tk.END), entry_x0.insert(0, "0.5"),
+            entry_y0.delete(0, tk.END), entry_y0.insert(0, "0.5")
+        )
+    ).pack(side=tk.LEFT, padx=6)
 
     # === Botón único ===
     btn_frame = tk.Frame(frame_left)
@@ -1005,6 +1042,44 @@ def abrir_modo_no_lineal():
                 text_info.insert(tk.END, f"{dy_sympy} = 0\n\n")
                 
                 soluciones = sp.solve([dx_sympy, dy_sympy], [x, y])
+
+                # --- Analisis Hamiltoniano / Conservatividad ---
+                text_info.insert(tk.END, "\n-- PASO: Analisis Hamiltoniano / Conservatividad\n")
+                try:
+                    div_expr = sp.simplify(sp.diff(dx_sympy, x) + sp.diff(dy_sympy, y))
+                except Exception:
+                    div_expr = None
+                H_expr = None
+                es_hamiltoniano = False
+                if div_expr is not None and sp.simplify(div_expr) == 0:
+                    es_hamiltoniano = True
+                    text_info.insert(tk.END, "   Condicion f_x + g_y = 0 (divergencia nula).\n")
+                    # Intentar construir H: H_y = f = dx_sympy y H_x = -g = -dy_sympy
+                    try:
+                        # Ruta A: integrar f respecto a y
+                        H_cand = sp.integrate(dx_sympy, (y))
+                        Cprime = sp.simplify(-dy_sympy - sp.diff(H_cand, x))
+                        if not (Cprime.has(y)):
+                            Cx = sp.integrate(Cprime, (x))
+                            H_expr = sp.simplify(H_cand + Cx)
+                        else:
+                            # Ruta B: integrar -g respecto a x
+                            H_cand2 = -sp.integrate(dy_sympy, (x))
+                            Cprime_y = sp.simplify(dx_sympy - sp.diff(H_cand2, y))
+                            if not (Cprime_y.has(x)):
+                                Cy = sp.integrate(Cprime_y, (y))
+                                H_expr = sp.simplify(H_cand2 + Cy)
+                    except Exception:
+                        H_expr = None
+                    if H_expr is not None:
+                        text_info.insert(tk.END, f"\n   Sistema Hamiltoniano. Integral primera H(x,y) (hasta cte):\n   H(x,y) = {sp.simplify(H_expr)}\n")
+                    else:
+                        text_info.insert(tk.END, "\n   Sistema Hamiltoniano (divergencia nula), pero no se encontro H cerrada simbolica.\n")
+                else:
+                    if div_expr is None:
+                        text_info.insert(tk.END, "   No fue posible calcular la divergencia.\n")
+                    else:
+                        text_info.insert(tk.END, f"\n   No Hamiltoniano (divergencia = {sp.simplify(div_expr)} != 0).\n")
                 
                 if isinstance(soluciones, list):
                     for i, sol in enumerate(soluciones):
@@ -1243,6 +1318,23 @@ def abrir_modo_no_lineal():
             U_norm, V_norm = U/M, V/M
             
             ax.quiver(X, Y, U_norm, V_norm, alpha=0.5, color='gray', scale=25, width=0.003)
+
+            # Superponer curvas de nivel de H si corresponde
+            try:
+                if 'H_expr' in locals() and H_expr is not None and var_mostrar_niveles_H.get():
+                    H_np = sp.lambdify((x, y), H_expr, modules=['numpy'])
+                    HH = H_np(X, Y)
+                    if np.iscomplexobj(HH):
+                        HH = np.real(HH)
+                    finite_vals = HH[np.isfinite(HH)]
+                    if finite_vals.size > 0:
+                        vmin, vmax = np.percentile(finite_vals, [10, 90])
+                        if vmin != vmax:
+                            levels = np.linspace(vmin, vmax, 8)
+                            cs = ax.contour(X, Y, HH, levels=levels, cmap='coolwarm', alpha=0.6)
+                            ax.clabel(cs, inline=1, fontsize=8)
+            except Exception:
+                pass
             
             # Puntos de equilibrio con colores según estabilidad
             if equilibrios and autovalores_puntos:
@@ -1324,6 +1416,38 @@ def abrir_modo_no_lineal():
             ax.grid(True, alpha=0.3)
             ax.legend(loc='best', fontsize=9)
             
+            # Validacion visual extra para no homogeneas
+            try:
+                es_constante = True
+                f1_0 = eval(f1_text, {"t": 0, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f1_1 = eval(f1_text, {"t": 1, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f2_0 = eval(f2_text, {"t": 0, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                f2_1 = eval(f2_text, {"t": 1, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
+                if abs(f1_0 - f1_1) > 1e-10 or abs(f2_0 - f2_1) > 1e-10:
+                    es_constante = False
+                if es_constante:
+                    f_const = np.array([float(f1_0), float(f2_0)])
+                    if abs(np.linalg.det(A)) > 1e-12:
+                        Xp = np.linalg.solve(-A, f_const)
+                        ax.scatter(Xp[0], Xp[1], s=120, c='k', marker='X', label='Equilibrio Xp', zorder=6)
+                    # Nulclinas afines en la ventana actual
+                    xmin, xmax = ax.get_xlim(); ymin, ymax = ax.get_ylim()
+                    X2, Y2 = np.meshgrid(np.linspace(xmin, xmax, 30), np.linspace(ymin, ymax, 30))
+                    U2 = A[0,0]*X2 + A[0,1]*Y2 + f_const[0]
+                    V2 = A[1,0]*X2 + A[1,1]*Y2 + f_const[1]
+                    try:
+                        c1 = ax.contour(X2, Y2, U2, levels=[0], colors='blue', linestyles='--', linewidths=1.2)
+                        c2 = ax.contour(X2, Y2, V2, levels=[0], colors='red', linestyles='--', linewidths=1.2)
+                        ax.clabel(c1, fmt={'0': 'dx/dt=0'}, fontsize=8)
+                        ax.clabel(c2, fmt={'0': 'dy/dt=0'}, fontsize=8)
+                    except Exception:
+                        pass
+                else:
+                    ax.text(0.02, 0.98, 'Campo mostrado en t=0 (no autonomo)', transform=ax.transAxes,
+                            va='top', ha='left', fontsize=8, color='gray')
+            except Exception:
+                pass
+
             canvas.draw()
             
             # Mensaje final
@@ -1340,7 +1464,7 @@ def abrir_modo_no_lineal():
 # 🧭 Ventana modo no homogeneo
 # ============================================================
 
-def abrir_modo_no_homogeneo():
+def abrir_modo_no_homogeneo(p_A=None, p_f=None, p_x0=None):
     wh = tk.Toplevel()
     wh.title("Sistema dinámico 2D - Modo No homogéneo X' = AX + f(t)")
     wh.geometry("1400x950")
@@ -1409,6 +1533,24 @@ def abrir_modo_no_homogeneo():
     entry_y0.grid(row=7, column=3)
     entry_y0.insert(0, "0")
 
+    # Sobrescribir con parámetros iniciales si se proveen
+    try:
+        if isinstance(p_A, (list, tuple)) and len(p_A) == 2 and len(p_A[0]) == 2 and len(p_A[1]) == 2:
+            a11, a12 = p_A[0][0], p_A[0][1]
+            a21, a22 = p_A[1][0], p_A[1][1]
+            entry_a11.delete(0, tk.END); entry_a11.insert(0, str(a11))
+            entry_a12.delete(0, tk.END); entry_a12.insert(0, str(a12))
+            entry_a21.delete(0, tk.END); entry_a21.insert(0, str(a21))
+            entry_a22.delete(0, tk.END); entry_a22.insert(0, str(a22))
+        if isinstance(p_f, (list, tuple)) and len(p_f) == 2:
+            entry_f1.delete(0, tk.END); entry_f1.insert(0, str(p_f[0]))
+            entry_f2.delete(0, tk.END); entry_f2.insert(0, str(p_f[1]))
+        if isinstance(p_x0, (list, tuple)) and len(p_x0) == 2:
+            entry_x0.delete(0, tk.END); entry_x0.insert(0, str(p_x0[0]))
+            entry_y0.delete(0, tk.END); entry_y0.insert(0, str(p_x0[1]))
+    except Exception:
+        pass
+
     # Ejemplos predefinidos
     frame_ejemplos = tk.Frame(frame_inputs)
     frame_ejemplos.grid(row=8, column=0, columnspan=4, pady=10, sticky="ew")
@@ -1439,6 +1581,19 @@ def abrir_modo_no_homogeneo():
         tk.Button(btn_frame, text=f"Ej{i}", font=("Consolas", 9), width=4,
                  command=lambda x=i: cargar_ejemplo(x)).pack(side=tk.LEFT, padx=2)
 
+    # Botón con nombre para el caso de batalla (Lanchester)
+    def _set_lanchester():
+        entry_a11.delete(0, tk.END); entry_a11.insert(0, "0")
+        entry_a12.delete(0, tk.END); entry_a12.insert(0, "-0.1")
+        entry_a21.delete(0, tk.END); entry_a21.insert(0, "-0.2")
+        entry_a22.delete(0, tk.END); entry_a22.insert(0, "0")
+        entry_f1.delete(0, tk.END); entry_f1.insert(0, "0")
+        entry_f2.delete(0, tk.END); entry_f2.insert(0, "0")
+        entry_x0.delete(0, tk.END); entry_x0.insert(0, "500")
+        entry_y0.delete(0, tk.END); entry_y0.insert(0, "400")
+    tk.Button(btn_frame, text="Batalla (Lanchester)", font=("Consolas", 9),
+              command=_set_lanchester).pack(side=tk.LEFT, padx=6)
+
     # === Botones ===
     btns = tk.Frame(frame_left, relief=tk.RAISED, bd=2, bg="#e0e0e0")
     btns.pack(pady=15, fill=tk.X)
@@ -1446,8 +1601,27 @@ def abrir_modo_no_homogeneo():
               font=("Consolas", 12, "bold"), command=lambda: resolver_no_homogeneo(), 
               width=25, height=2).pack(side=tk.LEFT, padx=10, expand=True)
     tk.Button(btns, text="GRAFICAR COMPARACIÓN", bg="#2196F3", fg="white",
-              font=("Consolas", 12, "bold"), command=lambda: graficar_comparacion(),
+              font=("Consolas", 12, "bold"), command=lambda: graficar_comparacion(entry_a11, entry_a12, entry_a21, entry_a22, entry_f1, entry_f2, entry_x0, entry_y0, ax, canvas, entry_T_poincare, entry_t0_poincare, entry_N_poincare, var_mostrar_poincare),
               width=25, height=2).pack(side=tk.LEFT, padx=10, expand=True)
+
+    # === Sección de Poincaré (si f(t) es periódica) ===
+    frame_poin = tk.Frame(frame_left)
+    frame_poin.pack(pady=(0, 8), fill=tk.X)
+    tk.Label(frame_poin, text="Poincaré (f(t) periódica):", font=("Consolas", 10, "bold")).grid(row=0, column=0, sticky='w', padx=4)
+    tk.Label(frame_poin, text="T:").grid(row=1, column=0, sticky='e')
+    entry_T_poincare = tk.Entry(frame_poin, width=8)
+    entry_T_poincare.grid(row=1, column=1)
+    entry_T_poincare.insert(0, "6.28318")
+    tk.Label(frame_poin, text="t0:").grid(row=1, column=2, sticky='e')
+    entry_t0_poincare = tk.Entry(frame_poin, width=8)
+    entry_t0_poincare.grid(row=1, column=3)
+    entry_t0_poincare.insert(0, "0")
+    tk.Label(frame_poin, text="N:").grid(row=1, column=4, sticky='e')
+    entry_N_poincare = tk.Entry(frame_poin, width=8)
+    entry_N_poincare.grid(row=1, column=5)
+    entry_N_poincare.insert(0, "10")
+    var_mostrar_poincare = tk.BooleanVar(value=False)
+    tk.Checkbutton(frame_poin, text="Mostrar Poincaré", variable=var_mostrar_poincare).grid(row=1, column=6, padx=8)
 
     # === Canvas ===
     fig, ax = plt.subplots(figsize=(7.5, 7.5))
@@ -1472,8 +1646,8 @@ def abrir_modo_no_homogeneo():
             A = np.array([[a11, a12], [a21, a22]])
             
             # Obtener función forzante f(t)
-            f1_text = entry_f1.get().strip()
-            f2_text = entry_f2.get().strip()
+            f1_text = entry_f1.get().strip().replace(',', '.')
+            f2_text = entry_f2.get().strip().replace(',', '.')
             
             # Condiciones iniciales
             x0 = float(entry_x0.get())
@@ -1636,7 +1810,7 @@ def abrir_modo_no_homogeneo():
             text_info.insert(tk.END, f"❌ Error en el análisis: {e}\n")
 
     # === Función de graficación comparativa ===
-    def graficar_comparacion():
+def graficar_comparacion(entry_a11, entry_a12, entry_a21, entry_a22, entry_f1, entry_f2, entry_x0, entry_y0, ax, canvas, entry_T_poincare, entry_t0_poincare, entry_N_poincare, var_mostrar_poincare):
         try:
             # Obtener parámetros
             a11 = float(entry_a11.get())
@@ -1645,27 +1819,51 @@ def abrir_modo_no_homogeneo():
             a22 = float(entry_a22.get())
             A = np.array([[a11, a12], [a21, a22]])
             
-            f1_text = entry_f1.get().strip()
-            f2_text = entry_f2.get().strip()
+            f1_text = entry_f1.get().strip().replace(',', '.')
+            f2_text = entry_f2.get().strip().replace(',', '.')
             x0 = float(entry_x0.get())
             y0 = float(entry_y0.get())
             
             # Sistema homogéneo
             def sistema_homogeneo(t, XY):
+                XY = np.asarray(XY, dtype=float).reshape(2,)
                 return A @ XY
             
             # Sistema no homogéneo
             def sistema_no_homogeneo(t, XY):
                 f1_val = eval(f1_text, {"t": t, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
                 f2_val = eval(f2_text, {"t": t, "np": np, "sin": np.sin, "cos": np.cos, "exp": np.exp})
-                return A @ XY + np.array([f1_val, f2_val])
+                try:
+                    f_vec = np.array([float(f1_val), float(f2_val)], dtype=float)
+                except Exception:
+                    raise ValueError("Expresión de f(t) inválida. Usa punto decimal (ej. 1.9) y expresiones escalares para cada componente.")
+                XY = np.asarray(XY, dtype=float).reshape(2,)
+                out = A @ XY + f_vec
+                # Chequeo de finitud para evitar warnings silenciosos
+                if not np.all(np.isfinite(out)):
+                    raise ValueError("El campo produjo valores no finitos (revise f(t) y condiciones)")
+                return out
             
             # Resolver ambos sistemas
-            t_span = [0, 10]
-            t_eval = np.linspace(0, 10, 1000)
+            # Preparar horizonte según Poincaré
+            try:
+                T_p = float(entry_T_poincare.get())
+                t0_p = float(entry_t0_poincare.get())
+                N_p = int(entry_N_poincare.get())
+                mostrar_p = bool(var_mostrar_poincare.get())
+            except Exception:
+                T_p, t0_p, N_p, mostrar_p = 0.0, 0.0, 0, False
+            t_end = 10.0
+            if mostrar_p and (T_p is not None) and T_p > 0 and (N_p is not None) and N_p > 0:
+                t_end = max(10.0, t0_p + N_p * T_p)
+            t_span = [0, t_end]
+            # Mantener densidad razonable para evitar bloqueos con T grande o N alto
+            n_eval = max(1000, int(200 * t_end))
+            n_eval = min(n_eval, 5000)
+            t_eval = np.linspace(0, t_end, n_eval)
             
-            sol_hom = solve_ivp(sistema_homogeneo, t_span, [x0, y0], t_eval=t_eval)
-            sol_no_hom = solve_ivp(sistema_no_homogeneo, t_span, [x0, y0], t_eval=t_eval)
+            sol_hom = solve_ivp(sistema_homogeneo, t_span, [x0, y0], t_eval=t_eval, dense_output=True)
+            sol_no_hom = solve_ivp(sistema_no_homogeneo, t_span, [x0, y0], t_eval=t_eval, dense_output=True)
             
             # Graficar
             ax.clear()
@@ -1710,6 +1908,20 @@ def abrir_modo_no_homogeneo():
                 y_range = np.ptp(all_y)
                 ax.set_xlim(np.min(all_x) - margin*x_range, np.max(all_x) + margin*x_range)
                 ax.set_ylim(np.min(all_y) - margin*y_range, np.max(all_y) + margin*y_range)
+
+                # Sección de Poincaré (muestra puntos estroboscópicos de no homogéneo)
+                try:
+                    if mostrar_p and T_p > 0 and N_p > 0 and hasattr(sol_no_hom, 'sol') and (sol_no_hom.sol is not None):
+                        t_points = [t0_p + k * T_p for k in range(N_p + 1)]
+                        t_min, t_max = float(sol_no_hom.t[0]), float(sol_no_hom.t[-1])
+                        t_points = [tp for tp in t_points if tp >= t_min and tp <= t_max]
+                        if len(t_points) > 0:
+                            XYp = np.array([sol_no_hom.sol(tp) for tp in t_points])
+                            xp, yp = XYp[:,0], XYp[:,1]
+                            ax.scatter(xp, yp, s=28, c='magenta', edgecolors='white', linewidths=0.6,
+                                       label='Poincaré (no homog.)', zorder=7)
+                except Exception:
+                    pass
                 
             canvas.draw()
             
@@ -1724,7 +1936,11 @@ def abrir_modo_no_homogeneo():
 # ============================================================
 root = tk.Tk()
 root.title("Selector de modo")
-root.geometry("400x250")
+root.geometry("420x340")
+try:
+    root.minsize(420, 340)
+except Exception:
+    pass
 
 tk.Label(root, text="Elegí el tipo de sistema dinámico", font=("Consolas", 13, "bold")).pack(pady=20)
 
@@ -1737,6 +1953,6 @@ tk.Button(root, text="🔸 Modo Sistemas No Lineales", font=("Consolas", 12), wi
 tk.Button(root, text="🔸 Modo No homogeneo", font=("Consolas", 12), width=30,
           command=abrir_modo_no_homogeneo).pack(pady=10)
 
-tk.Label(root, text="(Cada modo se abre en una ventana separada)", font=("Consolas", 10, "italic")).pack(pady=15)
+tk.Label(root, text="", font=("Consolas", 10, "italic")).pack(pady=15)
 
 root.mainloop()
