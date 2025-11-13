@@ -5,18 +5,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
 from tkinter import messagebox
 from scipy.integrate import solve_ivp
-import subprocess
-import sys
-import os
-
-_AUTOR_FIRMA = "Autores: Nugnes, Sturba, Quatraro"
-
-
-def _agregar_firma_autores(ventana):
-    try:
-        tk.Label(ventana, text=_AUTOR_FIRMA, font=("Consolas", 9, "italic")).pack(side=tk.BOTTOM, pady=6)
-    except Exception:
-        pass
 
 def _best_integer_scale(real_vec: np.ndarray, imag_vec: np.ndarray, max_scale: int = 20):
     """Busca un factor entero pequeño que deje real_vec e imag_vec cercanos a enteros.
@@ -270,7 +258,6 @@ def abrir_modo_numerico():
     wn.title("Sistema dinámico 2D - Modo Numérico clásico")
     wn.geometry("1200x900")
     wn.minsize(800, 600)  # Ensure minimum window size
-    _agregar_firma_autores(wn)
 
     # --- Dividir ventana: gráfico a la izquierda / análisis a la derecha
     frame_main = tk.Frame(wn)
@@ -758,7 +745,6 @@ def abrir_modo_simbolico():
     ws = tk.Toplevel()
     ws.title("Sistema dinámico 2D - Modo Simbólico / No lineal")
     ws.geometry("1200x900")
-    _agregar_firma_autores(ws)
 
     # --- Dividimos en dos secciones: izquierda (gráfico) / derecha (info)
     frame_main = tk.Frame(ws)
@@ -897,7 +883,6 @@ def abrir_modo_no_lineal(p_dx=None, p_dy=None, p_x0=None, p_y0=None):
     wnl.title("Análisis de Sistemas Dinámicos No Lineales")
     wnl.geometry("1500x1000")
     wnl.minsize(1200, 800)
-    _agregar_firma_autores(wnl)
 
     # --- Dividir ventana
     frame_main = tk.Frame(wnl)
@@ -1484,7 +1469,6 @@ def abrir_modo_no_homogeneo(p_A=None, p_f=None, p_x0=None):
     wh.title("Sistema dinámico 2D - Modo No homogéneo X' = AX + f(t)")
     wh.geometry("1400x950")
     wh.minsize(1200, 800)
-    _agregar_firma_autores(wh)
 
     # --- Dividir ventana
     frame_main = tk.Frame(wh)
@@ -1947,310 +1931,28 @@ def graficar_comparacion(entry_a11, entry_a12, entry_a21, entry_a22, entry_f1, e
 
 
 
-
-
-def abrir_modo_bifurcacion_1d():
-    wb = tk.Toplevel()
-    wb.title('Bifurcaciones 1D - Sistemas autonomos')
-    wb.geometry('1200x700')
-    wb.minsize(1000, 600)
-    _agregar_firma_autores(wb)
-
-    frame_main = tk.Frame(wb)
-    frame_main.pack(fill=tk.BOTH, expand=True)
-
-    frame_left = tk.Frame(frame_main)
-    frame_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    frame_right = tk.Frame(frame_main, padx=10, pady=10, bg='#f4f4f4')
-    frame_right.pack(side=tk.RIGHT, fill=tk.Y)
-
-    # Controls (right)
-    tk.Label(frame_right, text='dx/dt = f(x, mu)', bg='#f4f4f4', font=('Consolas', 12, 'bold')).pack(anchor='w')
-    row = tk.Frame(frame_right, bg='#f4f4f4'); row.pack(anchor='w', pady=3)
-    tk.Label(row, text='f(x, mu) =', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_fx = tk.Entry(row, width=28); entry_fx.pack(side=tk.LEFT, padx=4)
-    entry_fx.insert(0, 'mu + x**2')
-    row2 = tk.Frame(frame_right, bg='#f4f4f4'); row2.pack(anchor='w', pady=3)
-    tk.Label(row2, text='par:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_par = tk.Entry(row2, width=6); entry_par.pack(side=tk.LEFT); entry_par.insert(0, 'mu')
-    tk.Label(row2, text='min:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_min = tk.Entry(row2, width=8); entry_min.pack(side=tk.LEFT); entry_min.insert(0, '-2')
-    tk.Label(row2, text='max:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_max = tk.Entry(row2, width=8); entry_max.pack(side=tk.LEFT); entry_max.insert(0, '2')
-    tk.Label(row2, text='steps:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_steps = tk.Entry(row2, width=6); entry_steps.pack(side=tk.LEFT); entry_steps.insert(0, '120')
-    row3 = tk.Frame(frame_right, bg='#f4f4f4'); row3.pack(anchor='w', pady=3)
-    tk.Label(row3, text='mu-star:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_mu_star = tk.Entry(row3, width=8); entry_mu_star.pack(side=tk.LEFT); entry_mu_star.insert(0, '0')
-    tk.Label(row3, text='x-range:', bg='#f4f4f4').pack(side=tk.LEFT)
-    entry_xmin = tk.Entry(row3, width=6); entry_xmin.pack(side=tk.LEFT); entry_xmin.insert(0, '-3')
-    entry_xmax = tk.Entry(row3, width=6); entry_xmax.pack(side=tk.LEFT); entry_xmax.insert(0, '3')
-
-    # Figures (left)
-    fig, (ax_bif, ax_phase) = plt.subplots(1, 2, figsize=(10,5))
-    canvas = FigureCanvasTkAgg(fig, master=frame_left)
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, pady=10)
-
-    text_info = tk.Text(frame_right, width=48, height=30, font=('Consolas', 9), bg='#f9f9f9')
-    text_info.pack(fill=tk.BOTH, expand=True, pady=(6,0))
-
-    x = sp.symbols('x')
-
-    def _dedupe(vals, tol=1e-6):
-        out=[]
-        for v in vals:
-            if all(abs(v-u)>tol for u in out):
-                out.append(v)
-        return out
-
-    def _segment_by_gap(mu_vec, x_vec, max_gap_mu, max_gap_x):
-        segs=[]; cur_m=[]; cur_x=[]
-        for i in range(len(mu_vec)):
-            if i==0:
-                cur_m=[mu_vec[i]]; cur_x=[x_vec[i]]; continue
-            if abs(mu_vec[i]-mu_vec[i-1])>max_gap_mu or abs(x_vec[i]-x_vec[i-1])>max_gap_x:
-                if len(cur_m)>1:
-                    segs.append((np.array(cur_m), np.array(cur_x)))
-                cur_m=[mu_vec[i]]; cur_x=[x_vec[i]]
-            else:
-                cur_m.append(mu_vec[i]); cur_x.append(x_vec[i])
-        if len(cur_m)>1:
-            segs.append((np.array(cur_m), np.array(cur_x)))
-        return segs
-
-    def analizar_bif():
-        try:
-            fx_expr = entry_fx.get().strip().replace('^', '**')
-            par = entry_par.get().strip() or 'mu'
-            mu_min = float(entry_min.get())
-            mu_max = float(entry_max.get())
-            steps = int(entry_steps.get())
-            if steps < 2:
-                steps = 2
-            p = sp.symbols(par)
-            f = sp.sympify(fx_expr)
-            df = sp.diff(f, x)
-            mus = np.linspace(mu_min, mu_max, steps)
-            prev = []
-            pts = []
-            for mu in mus:
-                f_mu = sp.simplify(f.subs({p: mu}))
-                df_mu = sp.simplify(df.subs({p: mu}))
-                xs = []
-                try:
-                    sols = sp.solve(sp.Eq(f_mu, 0), x)
-                    for r in sols:
-                        rv = complex(r)
-                        if abs(rv.imag) < 1e-9:
-                            xs.append(float(rv.real))
-                except Exception:
-                    pass
-                seeds = prev[:] if prev else list(np.linspace(-3, 3, 7))
-                for s0 in seeds:
-                    try:
-                        root = sp.nsolve(f_mu, x, float(s0))
-                        rv = complex(root)
-                        if abs(rv.imag) < 1e-9:
-                            xs.append(float(rv.real))
-                    except Exception:
-                        pass
-                xs = _dedupe(sorted(xs), 1e-5)
-                if xs:
-                    prev = xs[:]
-                for xv in xs:
-                    try:
-                        lam = float(df_mu.subs({x: xv}))
-                        pts.append((mu, xv, 1.0 if lam < 0 else 0.0))
-                    except Exception:
-                        pass
-            summary_lines = []
-            summary_lines.append('f(x,{}) = {}'.format(par, fx_expr))
-            summary_lines.append('{} range: [{}, {}]  steps={}'.format(par, mu_min, mu_max, steps))
-            ax_bif.clear()
-            if pts:
-                P = np.array(pts, dtype=float)
-                order = np.argsort(P[:, 0])
-                P = P[order]
-                mu_vec = P[:, 0]
-                x_vec = P[:, 1]
-                stab = P[:, 2] > 0.5
-                mu_s = mu_vec[stab]
-                x_s = x_vec[stab]
-                segs = _segment_by_gap(mu_s, x_s, (mu_max - mu_min) / steps * 2.5,
-                                        (max(1.0, np.ptp(x_vec)) * 0.3 if len(x_vec) > 1 else 1.0))
-                for mu_seg, x_seg in segs:
-                    ax_bif.plot(mu_seg, x_seg, 'g-', lw=2)
-                mu_u = mu_vec[~stab]
-                x_u = x_vec[~stab]
-                segs_u = _segment_by_gap(mu_u, x_u, (mu_max - mu_min) / steps * 2.5,
-                                          (max(1.0, np.ptp(x_vec)) * 0.3 if len(x_vec) > 1 else 1.0))
-                for mu_seg, x_seg in segs_u:
-                    ax_bif.plot(mu_seg, x_seg, 'r--', lw=2)
-                counts = {}
-                for row in P:
-                    key = row[0]
-                    counts[key] = counts.get(key, 0) + 1
-                mus_sorted = np.unique(P[:, 0])
-                if mus_sorted.size:
-                    idxs = [0, mus_sorted.size // 2, mus_sorted.size - 1]
-                    summary_lines.append('Sample equilibria:')
-                    seen = set()
-                    for idx in idxs:
-                        if idx in seen:
-                            continue
-                        seen.add(idx)
-                        mu_sel = mus_sorted[idx]
-                        xs_mu = [float(v) for (m, v, _) in P if abs(m - mu_sel) < 1e-12]
-                        summary_lines.append('  mu={:.4f}: {} eq -> {}'.format(mu_sel, len(xs_mu), xs_mu))
-                    changes = []
-                    prev_c = None
-                    for mu_sel in mus_sorted:
-                        c = counts.get(mu_sel, 0)
-                        if prev_c is not None and c != prev_c:
-                            changes.append(mu_sel)
-                        prev_c = c
-                    if changes:
-                        summary_lines.append('\\nMu where equilibrium count changes:')
-                        for mu_sel in changes:
-                            summary_lines.append('  - {:.6f}'.format(mu_sel))
-            else:
-                summary_lines.append('No equilibria detected in the specified range.')
-            ax_bif.set_title('Diagrama de bifurcacion (1D)')
-            ax_bif.set_xlabel(par)
-            ax_bif.set_ylabel('x*')
-            ax_bif.grid(True, alpha=0.3)
-            canvas.draw()
-            text_info.delete('1.0', tk.END)
-            text_info.insert(tk.END, '\\\\n'.join(summary_lines) + '\n')
-        except Exception as e:
-            messagebox.showerror('Error', f'Bifurcacion 1D: {e}')
-
-    def ver_fase():
-        try:
-            fx_expr = entry_fx.get().strip().replace('^','**')
-            par = entry_par.get().strip() or 'mu'; mu = float(entry_mu_star.get())
-            p = sp.symbols(par)
-            f = sp.sympify(fx_expr); df = sp.diff(f, x)
-            f_mu = sp.simplify(f.subs({p:mu})); df_mu = sp.simplify(df.subs({p:mu}))
-            xmin = float(entry_xmin.get()); xmax = float(entry_xmax.get())
-            X = np.linspace(xmin, xmax, 400)
-            f_np = sp.lambdify(x, f_mu, 'numpy'); Y = f_np(X)
-            ax_phase.clear(); ax_phase.axhline(0, color='k', lw=1)
-            ax_phase.plot(X, Y, 'b-', lw=2, label='f(x, mu-star)')
-            xs=[]; idxs=np.where(np.sign(Y[:-1])*np.sign(Y[1:])<0)[0]
-            for idx in idxs:
-                try:
-                    root = sp.nsolve(sp.Eq(f_mu,0), x, (X[idx]+X[idx+1])/2.0)
-                    rv=complex(root)
-                    if abs(rv.imag)<1e-9:
-                        xs.append(float(rv.real))
-                except Exception:
-                    pass
-            xs=_dedupe(sorted(xs),1e-4)
-            for xv in xs:
-                lam=float(df_mu.subs({x:xv}))
-                col='green' if lam<0 else ('red' if lam>0 else 'orange')
-                ax_phase.scatter([xv],[0], s=60, c=col, edgecolors='black', zorder=4)
-            Xq=np.linspace(xmin, xmax, 24); U=np.sign(f_np(Xq))*0.2*(xmax-xmin)/10.0
-            ax_phase.quiver(Xq, np.zeros_like(Xq), U, np.zeros_like(U), angles='xy', scale_units='xy', scale=1, width=0.003, color='gray')
-            ax_phase.set_xlabel('x'); ax_phase.set_ylabel('dx/dt')
-            ax_phase.set_title(f'Campo 1D y equilibrios (mu-star={mu:.3f})')
-            ax_phase.grid(True, alpha=0.3)
-            canvas.draw()
-
-            text_info.delete('1.0', tk.END)
-            text_info.insert(tk.END, f"mu-star = {mu}\n\n")
-            text_info.insert(tk.END, f"Equilibrios: {xs}\n")
-            for xv in xs:
-                lam=float(df_mu.subs({x:xv}))
-                est='ESTABLE' if lam<0 else ('INESTABLE' if lam>0 else 'MARGINAL')
-                text_info.insert(tk.END, f"  x*={xv:.6f}: f'(x*)={lam:.6f} -> {est}\n")
-        except Exception as e:
-            messagebox.showerror('Error', f'Fase 1D: {e}')
-
-    btns = tk.Frame(frame_right, bg='#f4f4f4'); btns.pack(anchor='w', pady=6)
-    tk.Button(btns, text='Analizar bifurcacion', bg='#6d4c41', fg='white', command=analizar_bif).pack(side=tk.LEFT, padx=4)
-    tk.Button(btns, text='Ver fase (mu-star)', bg='#455a64', fg='white', command=ver_fase).pack(side=tk.LEFT, padx=4)
-
-def _abrir_script_externo(nombre_archivo):
-    ruta = os.path.join(os.path.dirname(__file__), nombre_archivo)
-    if not os.path.exists(ruta):
-        messagebox.showerror('Error', f'No se encontró {nombre_archivo}')
-        return
-    try:
-        subprocess.Popen([sys.executable, ruta])
-    except Exception as exc:
-        messagebox.showerror('Error', f'No se pudo iniciar {nombre_archivo}: {exc}')
-
-
-def abrir_lanchester():
-    _abrir_script_externo('combate_lanchester.py')
-
-
-def abrir_romeo_julieta():
-    _abrir_script_externo('romeo_julieta.py')
-
-
-def abrir_verhulst():
-    _abrir_script_externo('verhulst_infeccion.py')
-
-def _abrir_script_externo(nombre_archivo):
-    ruta = os.path.join(os.path.dirname(__file__), nombre_archivo)
-    if not os.path.exists(ruta):
-        messagebox.showerror('Error', f'No se encontr? {nombre_archivo}')
-        return
-    try:
-        subprocess.Popen([sys.executable, ruta])
-    except Exception as exc:
-        messagebox.showerror('Error', f'No se pudo iniciar {nombre_archivo}: {exc}')
-
-
-def abrir_lanchester():
-    _abrir_script_externo('combate_lanchester.py')
-
-
-def abrir_romeo_julieta():
-    _abrir_script_externo('romeo_julieta.py')
-
-
-def abrir_verhulst():
-    _abrir_script_externo('verhulst_infeccion.py')
-
 # ============================================================
 # 🧭 Ventana principal (selector de modo)
 # ============================================================
 root = tk.Tk()
 root.title("Selector de modo")
-root.geometry("460x520")
+root.geometry("420x340")
 try:
-    root.minsize(460, 520)
+    root.minsize(420, 340)
 except Exception:
     pass
 
 tk.Label(root, text="Elegí el tipo de sistema dinámico", font=("Consolas", 13, "bold")).pack(pady=20)
 
-tk.Button(root, text="Modo numérico clásico", font=("Consolas", 12), width=32,
-          command=abrir_modo_numerico).pack(pady=6)
+tk.Button(root, text="🔹 Modo Numérico clásico", font=("Consolas", 12), width=30,
+          command=abrir_modo_numerico).pack(pady=10)
 
-tk.Button(root, text="Modo Sistemas No Lineales", font=("Consolas", 12), width=32,
-          command=abrir_modo_no_lineal).pack(pady=6)
+tk.Button(root, text="🔸 Modo Sistemas No Lineales", font=("Consolas", 12), width=30,
+          command=abrir_modo_no_lineal).pack(pady=10)
 
-tk.Button(root, text="Modo No homogéneo", font=("Consolas", 12), width=32,
-          command=abrir_modo_no_homogeneo).pack(pady=6)
+tk.Button(root, text="🔸 Modo No homogeneo", font=("Consolas", 12), width=30,
+          command=abrir_modo_no_homogeneo).pack(pady=10)
 
-tk.Button(root, text='Bifurcaciones 1D', font=('Consolas', 12), width=32,
-          command=abrir_modo_bifurcacion_1d).pack(pady=6)
-
-tk.Button(root, text='Escenario Combate (Lanchester)', font=('Consolas', 12), width=32,
-          command=abrir_lanchester).pack(pady=6)
-
-tk.Button(root, text='Romeo & Julieta', font=('Consolas', 12), width=32,
-          command=abrir_romeo_julieta).pack(pady=6)
-
-tk.Button(root, text='Modelo Verhulst infección', font=('Consolas', 12), width=32,
-          command=abrir_verhulst).pack(pady=6)
-
-_agregar_firma_autores(root)
+tk.Label(root, text="", font=("Consolas", 10, "italic")).pack(pady=15)
 
 root.mainloop()
